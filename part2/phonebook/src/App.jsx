@@ -1,15 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import axios from 'axios'
+import personService from './services/personService'
 import Persons from './components/Persons'
 import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
 
 const App = () => {
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456' },
-    { name: 'Ada Lovelace', number: '39-44-5323523' },
-    { name: 'Dan Abramov', number: '12-43-234345' },
-    { name: 'Mary Poppendieck', number: '39-23-6423122' }
-  ])
+  const [persons, setNewPersons] = useState([])
 
   const [newName, setNewName] = useState('')
   const handleNameChange = (event) => setNewName(event.target.value)
@@ -25,20 +22,64 @@ const App = () => {
     setNewNumber('')
   }
 
-  const addContact = (event) => {
+  const removePerson = id => {
+    console.log('deleting id', id)
+    const person = persons.find(n => n.id === id)
+
+    const confirmed = window.confirm(`Delete ${person.name} ?`)
+
+    if (!confirmed) {
+      return
+    }
+
+    personService.remove(id)
+      .then(() => {
+        setNewPersons(persons.filter(person => person.id !== id))
+      })
+      .catch(error => {
+        alert(`${person.name} was already deleted`)
+        setNewPersons(persons.filter(person => person.id !== id))
+      })
+  }
+
+  const addPerson = (event) => {
     event.preventDefault()
 
-    if (persons.some(person => person.name === newName)) {
-      console.log('name already in array', newName)
-      alert(`${newName} is already added to phonebook`)
+    const exists = persons.some(person => person.name === newName)
+
+    if (exists) {
+      const confirmed = window.confirm(`${newName} is already added to phonebook, replace old number with a new one?`)
+
+      if (confirmed) {
+        const personToUpdate = persons.find(n => n.name === newName)
+        const updatedPersonObj = { ...personToUpdate, number: newNumber }
+        personService.update(personToUpdate.id, updatedPersonObj)
+          .then(response => {
+            setNewPersons(persons.map(person => person.id !== personToUpdate.id ? person : response))
+          })
+          .catch(error => {
+            alert(`${personToUpdate.name} was already deleted`)
+            setNewPersons(persons.filter(person => person.id !== personToUpdate.id))
+          })
+      }
+
       resetForm()
       return
     }
 
     const personObject = { name: newName, number: newNumber }
-    setPersons(persons.concat(personObject))
-    resetForm()
+    personService.create(personObject).then(returnedPerson => {
+      setNewPersons(persons.concat(returnedPerson))
+      resetForm()
+    })
   }
+
+  const hook = () => {
+    console.log('hook')
+    personService.getAll().then(initialPersons => setNewPersons(initialPersons))
+  }
+
+  useEffect(hook, [])
 
   const personsToShow = !filterValue ? persons
     : persons.filter(person => person.name.toLowerCase().includes(filterValue.toLowerCase()))
@@ -53,10 +94,10 @@ const App = () => {
         nameHandler={handleNameChange}
         number={newNumber}
         numberHandler={handleNumberChange}
-        submitHandler={addContact}
+        submitHandler={addPerson}
       />
       <h2>Numbers</h2>
-      <Persons persons={personsToShow} />
+      <Persons persons={personsToShow} deleteFunc={removePerson}/>
     </div>
   )
 }
