@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 import personService from './services/personService'
 import Persons from './components/Persons'
 import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
+import Notification from './components/Notification'
 
 const App = () => {
   const [persons, setNewPersons] = useState([])
@@ -16,6 +16,9 @@ const App = () => {
 
   const [filterValue, setFilterValue] = useState('')
   const handleFilterChange = (event) => setFilterValue(event.target.value)
+
+  const [notification, setNotification] = useState(null)
+  const [errorMessage, setErrorMessage] = useState(null)
 
   const resetForm = () => {
     setNewName('')
@@ -56,9 +59,17 @@ const App = () => {
         personService.update(personToUpdate.id, updatedPersonObj)
           .then(response => {
             setNewPersons(persons.map(person => person.id !== personToUpdate.id ? person : response))
+            setNotification(`Updated ${response.name}`)
+            console.log('notification now', notification)
+            setTimeout(() => {
+              setNotification(null)
+            }, 5000)
           })
-          .catch(error => {
-            alert(`${personToUpdate.name} was already deleted`)
+          .catch(() => {
+            setErrorMessage(`Information of ${newName} has already been removed from server`)
+            setTimeout(() => {
+              setErrorMessage(null)
+            }, 5000)
             setNewPersons(persons.filter(person => person.id !== personToUpdate.id))
           })
       }
@@ -70,6 +81,11 @@ const App = () => {
     const personObject = { name: newName, number: newNumber }
     personService.create(personObject).then(returnedPerson => {
       setNewPersons(persons.concat(returnedPerson))
+      setNotification(`Added ${returnedPerson.name}`)
+      console.log('notification now', notification)
+      setTimeout(() => {
+        setNotification(null)
+      }, 5000)
       resetForm()
     })
   }
@@ -87,6 +103,8 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification className="update" message={notification} />
+      <Notification className="error" message={errorMessage} />
       <Filter changeHandler={handleFilterChange} currentValue={filterValue} />
       <h2>add a new</h2>
       <PersonForm
